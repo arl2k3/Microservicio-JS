@@ -1,22 +1,18 @@
 const userService = require("../services/userService");
 
+const { hashPassword } = require("../util/helper");
+const { sendRecoveryEmail } = require("../services/emailService");
+
 const registerUser = async (req, res) => {
   try {
     const { user, email, password, recovery_email } = req.body;
 
-    if (!user || !email || !password) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+    const hashedPassword = await hashPassword(password);
 
-    const existingUser = await userService.getUserByUsername(user);
-    if (existingUser) {
-      return res.status(400).json({ message: "Username already taken" });
-    }
-
-    const newUser = await userService.createUser(user, email, password, recovery_email);
+    const newUser = await userService.createUser(user, email, hashedPassword, recovery_email);
     return res.status(201).json(newUser);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error registering user" });
   }
 };
 
@@ -56,4 +52,60 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, getUser, updateUser, deleteUser };
+const { comparePassword } = require("../services/userService");
+
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await userService.getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isValidPassword = await comparePassword(password, user.password);
+    if (!isValidPassword) return res.status(401).json({ message: "Invalid password" });
+
+    return res.json({ message: "Login successful" });
+  } catch (error) {
+    return res.status(500).json({ message: "Error logging in" });
+  }
+};
+
+const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await userService.getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await sendRecoveryEmail(email);
+
+    return res.json({ message: "Recovery email sent" });
+  } catch (error) {
+    console.error("Error in requestPasswordReset:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email } = req.params; // Ahora se busca por email, no por ID
+    const { newPassword } = req.body;
+
+    const user = await userService.getUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Encriptar la nueva contraseña
+    const hashedPassword = await hashPassword(newPassword);
+    await userService.updateUser(user.id, { password: hashedPassword });
+
+    return res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error in resetPassword:", error);
+    return res.status(500).json({ message: "Error resetting password" });
+  }
+};
+
+module.exports = { registerUser, getUser, updateUser, deleteUser, loginUser, requestPasswordReset,resetPassword  };

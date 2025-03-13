@@ -2,12 +2,17 @@ const userService = require("../services/userService");
 
 const { hashPassword } = require("../util/helper");
 const { sendRecoveryEmail } = require("../services/emailService");
+const { userSchema, passwordSchema } = require("../util/validationSchema");
 const crypto = require('crypto');
 
 const registerUser = async (req, res) => {
   try {
-    const { user, email, password, recovery_email } = req.body;
+    const validation = userSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ errors: validation.error.errors });
+    }
 
+    const { user, email, password, recovery_email } = req.body;
     const hashedPassword = await hashPassword(password);
 
     const newUser = await userService.createUser(user, email, hashedPassword, recovery_email);
@@ -24,7 +29,6 @@ const getUser = async (req, res) => {
     if (!foundUser) {
       return res.status(404).json({ message: "User not found" });
     }
-
     return res.json(foundUser);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -34,9 +38,12 @@ const getUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { user } = req.params;
-    const updateData = req.body;
+    const validation = userSchema.partial().safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ errors: validation.error.errors });
+    }
 
-    const updatedUser = await userService.updateUser(user, updateData);
+    const updatedUser = await userService.updateUser(user, req.body);
     return res.json(updatedUser);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -53,12 +60,19 @@ const deleteUser = async (req, res) => {
   }
 };
 
-const { comparePassword } = require("../util/helper");
-
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const loginSchema = z.object({
+      email: z.string().email("Invalid email format"),
+      password: z.string().min(10, "Password must be at least 10 characters"),
+    });
 
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ errors: validation.error.errors });
+    }
+
+    const { email, password } = req.body;
     const user = await userService.getUserByEmail(email);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -73,25 +87,32 @@ const loginUser = async (req, res) => {
 
 const requestPasswordReset = async (req, res) => {
   try {
-    const { email } = req.body;
+    const emailSchema = z.object({
+      email: z.string().email("Invalid email format"),
+    });
 
-    // Buscar usuario en la base de datos
+    const validation = emailSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ errors: validation.error.errors });
+    }
+
+    const { email } = req.body;
     const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     // Generar una nueva contraseña temporal
-    const tempPassword = crypto.randomBytes(4).toString("hex"); // Genera una contraseña segura de 8 caracteres
-    const hashedPassword = await hashPassword(tempPassword); // Hashear la contraseña
+    const tempPassword = crypto.randomBytes(4).toString("hex");
+    const hashedPassword = await hashPassword(tempPassword);
 
     // Guardar la nueva contraseña en la base de datos
     await userService.updateUser(user.id, { password: hashedPassword });
 
     // Enviar el correo con la nueva contraseña
     const emailContent = `
-      <p>Tu nueva contrasena temporal es: <strong>${tempPassword}</strong></p>
-      <p>Por favor, inicia sesión y cambia tu contrasena.</p>
+      <p>Tu nueva contraseña temporal es: <strong>${tempPassword}</strong></p>
+      <p>Por favor, inicia sesión y cambia tu contraseña.</p>
     `;
     await sendRecoveryEmail(email, emailContent);
 
@@ -102,28 +123,26 @@ const requestPasswordReset = async (req, res) => {
   }
 };
 
-
 const resetPassword = async (req, res) => {
   try {
-    const { email } = req.params;  
-    const { currentPassword, newPassword } = req.body;  
+    const { email } = req.params;
+    const validation = passwordSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ errors: validation.error.errors });
+    }
 
-    // Buscar al usuario por su email
+    const { currentPassword, newPassword } = req.body;
     const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Verificar si la contraseña actual es correcta
     const isValidPassword = await comparePassword(currentPassword, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ message: "Invalid current password" });
     }
 
-    // Encriptar la nueva contraseña
     const hashedPassword = await hashPassword(newPassword);
-
-    // Actualizar la contraseña en la base de datos
     await userService.updateUser(user.id, { password: hashedPassword });
 
     return res.json({ message: "Password updated successfully" });

@@ -11,20 +11,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendRecoveryEmail = async (email) => {
+const sendRecoveryEmail = async (email, content) => {
   try {
-    const mailOptions = {
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Password Recovery",
-      html: `<p>Use this email to recover your account. If you didn't request this, please ignore it.</p>`,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent: ", info.response);
+      html: content,
+    });
   } catch (error) {
-    console.error("Error sending email:", error);
-    throw new Error(`Error sending email: ${error.message}`);
+    throw new Error("Error sending email");
   }
 };
 

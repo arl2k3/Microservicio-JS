@@ -21,13 +21,16 @@ const getUserByUsername = async (user) => {
   }
 };
 
-const updateUser = async (user, data) => {
+const updateUser = async (userId, updateData) => {
   try {
-    return await prisma.user.update({
-      where: { user },
-      data,
+    // Asegúrate de que la clave y el valor de `updateData` sean correctos
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData, // Esto debería actualizar los campos correctos
     });
+    return updatedUser;
   } catch (error) {
+    console.error("Error updating user:", error);
     throw new Error("Error updating user");
   }
 };

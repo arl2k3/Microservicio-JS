@@ -2,6 +2,7 @@ const userService = require("../services/userService");
 
 const { hashPassword } = require("../util/helper");
 const { sendRecoveryEmail } = require("../services/emailService");
+const crypto = require('crypto');
 
 const registerUser = async (req, res) => {
   try {
@@ -52,7 +53,7 @@ const deleteUser = async (req, res) => {
   }
 };
 
-const { comparePassword } = require("../services/userService");
+const { comparePassword } = require("../util/helper");
 
 const loginUser = async (req, res) => {
   try {
@@ -74,31 +75,55 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Buscar usuario en la base de datos
     const user = await userService.getUserByEmail(email);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    await sendRecoveryEmail(email);
+    // Generar una nueva contraseña temporal
+    const tempPassword = crypto.randomBytes(4).toString("hex"); // Genera una contraseña segura de 8 caracteres
+    const hashedPassword = await hashPassword(tempPassword); // Hashear la contraseña
 
-    return res.json({ message: "Recovery email sent" });
+    // Guardar la nueva contraseña en la base de datos
+    await userService.updateUser(user.id, { password: hashedPassword });
+
+    // Enviar el correo con la nueva contraseña
+    const emailContent = `
+      <p>Tu nueva contrasena temporal es: <strong>${tempPassword}</strong></p>
+      <p>Por favor, inicia sesión y cambia tu contrasena.</p>
+    `;
+    await sendRecoveryEmail(email, emailContent);
+
+    return res.json({ message: "Temporary password sent to email" });
   } catch (error) {
     console.error("Error in requestPasswordReset:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error sending recovery email" });
   }
 };
 
 
 const resetPassword = async (req, res) => {
   try {
-    const { email } = req.params; // Ahora se busca por email, no por ID
-    const { newPassword } = req.body;
+    const { email } = req.params;  
+    const { currentPassword, newPassword } = req.body;  
 
+    // Buscar al usuario por su email
     const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Verificar si la contraseña actual es correcta
+    const isValidPassword = await comparePassword(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: "Invalid current password" });
+    }
+
     // Encriptar la nueva contraseña
     const hashedPassword = await hashPassword(newPassword);
+
+    // Actualizar la contraseña en la base de datos
     await userService.updateUser(user.id, { password: hashedPassword });
 
     return res.json({ message: "Password updated successfully" });
@@ -107,5 +132,6 @@ const resetPassword = async (req, res) => {
     return res.status(500).json({ message: "Error resetting password" });
   }
 };
+
 
 module.exports = { registerUser, getUser, updateUser, deleteUser, loginUser, requestPasswordReset,resetPassword  };

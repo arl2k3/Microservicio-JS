@@ -21,12 +21,11 @@ const getUserByUsername = async (user) => {
   }
 };
 
-const updateUser = async (userId, updateData) => {
+const updateUser = async (Username, updateData) => {
   try {
-    // Asegúrate de que la clave y el valor de `updateData` sean correctos
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData, // Esto debería actualizar los campos correctos
+      where: { user: Username  },
+      data: updateData, 
     });
     return updatedUser;
   } catch (error) {
@@ -51,4 +50,13 @@ const getUserByEmail = async (email) => {
   });
 };
 
-module.exports = { createUser, getUserByUsername, updateUser, deleteUser, getUserByEmail };
+const getAllUsers = async () => {
+  try {
+    return await prisma.user.findMany(); 
+  } catch (error) {
+    console.error("Error fetching users from DB:", error);
+    throw new Error("Error fetching users");
+  }
+};
+
+module.exports = { createUser, getUserByUsername, updateUser, deleteUser, getUserByEmail,getAllUsers };

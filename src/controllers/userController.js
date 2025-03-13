@@ -43,6 +43,12 @@ const updateUser = async (req, res) => {
       return res.status(400).json({ errors: validation.error.errors });
     }
 
+    const { password } = req.body;
+
+    if (password) {
+      req.body.password = await hashPassword(password);
+    }
+
     const updatedUser = await userService.updateUser(user, req.body);
     return res.json(updatedUser);
   } catch (error) {
@@ -102,14 +108,11 @@ const requestPasswordReset = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Generar una nueva contraseña temporal
     const tempPassword = crypto.randomBytes(4).toString("hex");
     const hashedPassword = await hashPassword(tempPassword);
 
-    // Guardar la nueva contraseña en la base de datos
     await userService.updateUser(user.id, { password: hashedPassword });
 
-    // Enviar el correo con la nueva contraseña
     const emailContent = `
       <p>Tu nueva contraseña temporal es: <strong>${tempPassword}</strong></p>
       <p>Por favor, inicia sesión y cambia tu contraseña.</p>
@@ -152,5 +155,21 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await userService.getAllUsers();
 
-module.exports = { registerUser, getUser, updateUser, deleteUser, loginUser, requestPasswordReset,resetPassword  };
+    if (!users || users.length === 0) {
+      return res.status(404).json({ message: "No users found" });
+    }
+
+    return res.json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+module.exports = { registerUser, getUser, updateUser, deleteUser, loginUser, requestPasswordReset,resetPassword,getAllUsers };

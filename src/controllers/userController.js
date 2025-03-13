@@ -3,7 +3,6 @@ const userService = require("../services/userService");
 const { hashPassword } = require("../util/helper");
 const { sendRecoveryEmail } = require("../services/emailService");
 const { userSchema, passwordSchema } = require("../util/validationSchema");
-const crypto = require('crypto');
 
 const registerUser = async (req, res) => {
   try {
@@ -93,25 +92,16 @@ const loginUser = async (req, res) => {
 
 const requestPasswordReset = async (req, res) => {
   try {
-    const emailSchema = z.object({
-      email: z.string().email("Invalid email format"),
-    });
-
-    const validation = emailSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ errors: validation.error.errors });
-    }
-
     const { email } = req.body;
     const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const tempPassword = crypto.randomBytes(4).toString("hex");
+    const tempPassword = Math.random().toString(36).slice(-8); // Generar una contraseña aleatoria
     const hashedPassword = await hashPassword(tempPassword);
 
-    await userService.updateUser(user.id, { password: hashedPassword });
+    await userService.updateUser(user.user, { password: hashedPassword });
 
     const emailContent = `
       <p>Tu nueva contraseña temporal es: <strong>${tempPassword}</strong></p>

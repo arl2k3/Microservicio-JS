@@ -1,6 +1,6 @@
 const userService = require("../services/userService");
 
-const { hashPassword } = require("../util/helper");
+const { hashPassword, comparePassword } = require("../util/helper");
 const { sendRecoveryEmail } = require("../services/emailService");
 const { userSchema, passwordSchema } = require("../util/validationSchema");
 
@@ -67,16 +67,6 @@ const deleteUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    const loginSchema = z.object({
-      email: z.string().email("Invalid email format"),
-      password: z.string().min(10, "Password must be at least 10 characters"),
-    });
-
-    const validation = loginSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ errors: validation.error.errors });
-    }
-
     const { email, password } = req.body;
     const user = await userService.getUserByEmail(email);
     if (!user) return res.status(404).json({ message: "User not found" });

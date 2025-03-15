@@ -17,15 +17,15 @@ const getUserByUsername = async (user) => {
       where: { user },
     });
   } catch (error) {
-    throw new Error("Error fetching user");
+    throw new Error("Error finding user");
   }
 };
 
-const updateUser = async (Username, updateData) => {
+const updateUser = async (email, updateData) => {
   try {
     const updatedUser = await prisma.user.update({
-      where: { user: Username  },
-      data: updateData, 
+      where: { email }, // Cambia de `user` a `email` para la búsqueda
+      data: updateData,
     });
     return updatedUser;
   } catch (error) {
@@ -33,6 +33,8 @@ const updateUser = async (Username, updateData) => {
     throw new Error("Error updating user");
   }
 };
+
+
 
 const deleteUser = async (user) => {
   try {

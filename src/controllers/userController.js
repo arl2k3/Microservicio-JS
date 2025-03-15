@@ -108,25 +108,25 @@ const requestPasswordReset = async (req, res) => {
 
 const resetPassword = async (req, res) => {
   try {
-    const { email } = req.params;
-    const validation = passwordSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ errors: validation.error.errors });
-    }
-
-    const { currentPassword, newPassword } = req.body;
+    const { email, currentPassword, newPassword } = req.body;
+    
+    // Buscar al usuario por su email
     const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Verificar si la contraseña actual es válida
     const isValidPassword = await comparePassword(currentPassword, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ message: "Invalid current password" });
     }
 
+    // Hashear la nueva contraseña
     const hashedPassword = await hashPassword(newPassword);
-    await userService.updateUser(user.id, { password: hashedPassword });
+    
+    // Actualizar la contraseña del usuario
+    await userService.updateUser(user.email, { password: hashedPassword });
 
     return res.json({ message: "Password updated successfully" });
   } catch (error) {
@@ -134,6 +134,7 @@ const resetPassword = async (req, res) => {
     return res.status(500).json({ message: "Error resetting password" });
   }
 };
+
 
 const getAllUsers = async (req, res) => {
   try {

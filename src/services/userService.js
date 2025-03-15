@@ -53,17 +53,28 @@ async function getUserByEmail(email) {
 // Actualizar un usuario por email
 async function updateUser(email, updatedData) {
   try {
+    // Verificar si el usuario existe
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    // Si existe, proceder con la actualización
     const user = await prisma.user.update({
-      where: {
-        email: email,
-      },
+      where: { email },
       data: updatedData,
     });
+
     return user;
   } catch (error) {
-    throw new Error('Error al actualizar el usuario: ' + error.message);
+    throw new Error("Error al actualizar el usuario: " + error.message);
   }
 }
+
+
 
 
 async function patchUser(email, data) {

@@ -97,6 +97,8 @@ const loginUser = async (req, res) => {
   const requestPasswordReset = async (req, res) => {
     try {
       const { email } = req.body;
+      
+      // Buscar usuario por email
       const user = await userService.getUserByEmail(email);
       if (!user) {
         return res.status(404).json({
@@ -106,11 +108,14 @@ const loginUser = async (req, res) => {
         });
       }
   
-      const tempPassword = Math.random().toString(36).slice(-8); // Generar una contraseña aleatoria
+      // Generar contraseña temporal
+      const tempPassword = Math.random().toString(36).slice(-10);
       const hashedPassword = await hashPassword(tempPassword);
   
-      await userService.updateUser(user.user, { password: hashedPassword });
+      // Actualizar la contraseña en la base de datos usando el email
+      await userService.updateUser(user.email, { password: hashedPassword });
   
+      // Enviar el email de recuperación
       const emailContent = `
         <p>Tu nueva contraseña temporal es: <strong>${tempPassword}</strong></p>
         <p>Por favor, inicia sesión y cambia tu contraseña.</p>
@@ -131,6 +136,7 @@ const loginUser = async (req, res) => {
       });
     }
   };
+  
   
   const resetPassword = async (req, res) => {
     try {

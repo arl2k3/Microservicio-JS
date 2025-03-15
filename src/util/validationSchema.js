@@ -6,6 +6,7 @@ const userSchema = z.object({
     user: z.string().min(6, "Username must be at least 6 characters"),
     email: z.string().email("Invalid email format"),
     password: z.string().min(10, "Password must be at least 10 characters"),
+    recovery_email: z.string().email("Invalid recovery email format").optional(),
   });
   
   // Esquema para cambiar contraseña
@@ -14,4 +15,10 @@ const userSchema = z.object({
     newPassword: z.string().min(10, "New password must be at least 10 characters"),
   });
 
-module.exports = { userSchema, passwordSchema };
+  const responseSchema = z.object({
+    status: z.number(),
+    message: z.string(),
+    response : z.object().optional()
+  });
+
+module.exports = { userSchema, passwordSchema, responseSchema };

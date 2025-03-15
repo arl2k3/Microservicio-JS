@@ -2,7 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
 const userRoutes = require("./src/routes/userRoutes");
-const { errorHandler, notFoundHandler, malformedJsonHandler } = require("./src/util/errorHandler");
+const authRoutes = require("./src/routes/authRoutes");
+const { malformedJsonHandler, notFoundHandler, errorHandler } = require("./src/util/errorHandler");
 const setupSwagger = require("./src/config/swaggerConfig");
 const path = require("path");
 
@@ -23,11 +24,12 @@ app.get("/login", (req, res) => {
 });
 
 setupSwagger(app, PORT); // Habilitar Swagger
-app.use("/api/users", userRoutes);
+app.use("/api", userRoutes);
+app.use("/api", authRoutes);
 app.use(malformedJsonHandler);
 app.use(notFoundHandler);
 app.use(errorHandler);
-
+//cambiar de lugar
 
 
 const server = app.listen(PORT, () => {

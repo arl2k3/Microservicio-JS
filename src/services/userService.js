@@ -1,64 +1,120 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require('@prisma/client');
+const { json } = require('express');
+const { userSchema } = require('../util/validationSchema');
+const { OK } = require('zod');
 const prisma = new PrismaClient();
 
-const createUser = async (user, email, password, recovery_email) => {
+async function createUser(userData) {
+  const validation = userSchema.safeParse(userData);
+  if (!validation.success) {
+    throw new Error("Invalid user data: " + JSON.stringify(validation.error.errors));
+  }
+
   try {
-    return await prisma.user.create({
-      data: { user, email, password, recovery_email },
+    const user = await prisma.user.create({
+      data: {
+        user: userData.user,
+        email: userData.email,
+        password: userData.password, // Debe venir ya hasheada
+        recovery_email: userData.recovery_email || null,
+      },
     });
+    return user;
   } catch (error) {
-    throw new Error("Error creating user");
+    throw new Error("Error al crear el usuario: " + error.message);
   }
-};
+}
 
-const getUserByUsername = async (user) => {
+
+// Obtener todos los usuarios
+async function getAllUsers() {
   try {
-    return await prisma.user.findUnique({
-      where: { user },
+    const users = await prisma.user.findMany();
+    return users;
+  } catch (error) {
+    throw new Error('Error al obtener los usuarios: ' + error.message);
+  }
+}
+
+// Obtener un usuario por email
+async function getUserByEmail(email) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
     });
+    return user;
   } catch (error) {
-    throw new Error("Error finding user");
+    throw new Error('Error al obtener el usuario: ' + error.message);
   }
-};
+}
 
-const updateUser = async (email, updateData) => {
+// Actualizar un usuario por email
+async function updateUser(email, updatedData) {
   try {
-    const updatedUser = await prisma.user.update({
-      where: { email }, // Cambia de `user` a `email` para la búsqueda
-      data: updateData,
+    const user = await prisma.user.update({
+      where: {
+        email: email,
+      },
+      data: updatedData,
     });
-    return updatedUser;
+    return user;
   } catch (error) {
-    console.error("Error updating user:", error);
-    throw new Error("Error updating user");
+    throw new Error('Error al actualizar el usuario: ' + error.message);
   }
-};
+}
 
 
-
-const deleteUser = async (user) => {
+async function patchUser(email, data) {
   try {
-    return await prisma.user.delete({
-      where: { user },
+    const user = await prisma.user.updateMany({
+      where: {
+        email: email,
+      },
+      data: data,
     });
+    return OK;
+    ;
   } catch (error) {
-    throw new Error("Error deleting user");
+    throw new Error('Error al actualizar el usuario: ' + error.message);
   }
-};
+  
+}
 
-const getUserByEmail = async (email) => {
-  return await prisma.user.findUnique({
-    where: { email },
-  });
-};
-
-const getAllUsers = async () => {
+// Eliminar un usuario por email
+async function deleteUser(email) {
   try {
-    return await prisma.user.findMany(); 
+    const user = await prisma.user.delete({
+      where: {
+        email: email,
+      },
+    });
+    return user;
   } catch (error) {
-    console.error("Error fetching users from DB:", error);
-    throw new Error("Error fetching users");
+    throw new Error('Error al eliminar el usuario: ' + error.message);
   }
-};
+}
 
-module.exports = { createUser, getUserByUsername, updateUser, deleteUser, getUserByEmail,getAllUsers };
+async function getUserByUsername(username) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        user: username, // Busca por el campo 'user' (nombre de usuario)
+      },
+    });
+    return user;
+  } catch (error) {
+    throw new Error('Error al obtener el usuario: ' + error.message);
+  }
+}
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  getUserByEmail,
+  updateUser,
+  deleteUser,
+  getUserByUsername,
+  patchUser
+};
